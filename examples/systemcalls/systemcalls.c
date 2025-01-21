@@ -16,6 +16,10 @@ bool do_system(const char *cmd)
  *   and return a boolean true if the system() call completed with success
  *   or false() if it returned a failure
 */
+    if(system(cmd) == -1)
+    {
+        return false;
+    }
 
     return true;
 }
@@ -58,8 +62,40 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
+    __pid_t cpid = fork();
+    __pid_t w;
+    int status;
 
-    va_end(args);
+    if(cpid == -1)
+    {
+        return false;
+    }
+    else
+    {
+        if(cpid == 0) // Child process
+        {
+            execv(command[0], command);
+            exit(-1);
+            return false;
+        }
+        else { // Parent Process
+            w = waitpid(cpid, &status,  0);
+            if (w == -1) {
+                return false;
+            }
+            else {
+                int exit_status = WEXITSTATUS(status); // Get the exit status
+
+                if (exit_status == 0) {
+                    return true;
+                }
+                else {
+                    return false;
+                }
+            } 
+        }
+    }
+
 
     return true;
 }
@@ -93,7 +129,43 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *
 */
 
-    va_end(args);
+    int kidpid, status;
+    int fd = open(outputfile, O_WRONLY|O_TRUNC|O_CREAT, 0644);
+
+    if (fd < 0) { 
+        return false; 
+    }
+
+    switch (kidpid = fork()) 
+    {
+        case -1: 
+            return false; // Error Forking
+
+        case 0: // Child Process
+            if (dup2(fd, 1) < 0) { 
+                return false; 
+            }
+
+            close(fd);
+            execvp(command[0], command);  
+            exit(1);
+            return false;
+
+        default: // Parent Process
+            if (waitpid(kidpid, &status, 0) == -1){
+                return false;
+            }
+            else { 
+                int exit_status = WEXITSTATUS(status); // Get the exit status
+                close(fd);
+                if (exit_status == 0){
+                    return true;
+                }
+                else{
+                    return false;
+                }
+            }
+    }
 
     return true;
 }
