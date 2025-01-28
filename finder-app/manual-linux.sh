@@ -35,6 +35,11 @@ if [ ! -e ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ]; then
     git checkout ${KERNEL_VERSION}
 
     # TODO: Add your kernel build steps here
+    make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} distclean # Clean source directory
+    make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} defconfig # Generate config file
+    make -j4 ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE}       # Buid the kernel
+    make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} modules   # Buid the kernel modules
+    make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} dtbs      # Buid the devicetree
 fi
 
 echo "Adding the Image in outdir"
@@ -48,6 +53,11 @@ then
 fi
 
 # TODO: Create necessary base directories
+mkdir -p ${OUTDIR}/rootfs
+cd ${OUTDIR}/rootfs
+mkdir -p bin dev etc home lib lib64 proc sbin sys tmp usr var
+mkdir -p usr/bin usr/lib usr/sbin
+mkdir -p var/log
 
 cd "$OUTDIR"
 if [ ! -d "${OUTDIR}/busybox" ]
@@ -61,6 +71,10 @@ else
 fi
 
 # TODO: Make and install busybox
+make distclean
+make defconfig
+make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE}
+make CONFIG_PREFIX=../rootfs ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} install
 
 echo "Library dependencies"
 ${CROSS_COMPILE}readelf -a bin/busybox | grep "program interpreter"
